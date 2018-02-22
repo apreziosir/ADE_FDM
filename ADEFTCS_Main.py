@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import Screen_msgs as SM
 import Analyt as AN
+import Auxiliary as AUX
 
 # ==============================================================================
 # Declaration of physical variables for the problem. A positive value in X means
@@ -43,8 +44,8 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 
 T = 10                                          # Total sim. time (s)
 dt = 0.1                                        # timestep size (s)
-Nx = 6                                         # Nodes in x direction
-Ny = 6                                         # Nodes in y direction 
+Nx = 5                                          # Nodes in x direction
+Ny = 5                                          # Nodes in y direction 
 theta = 0                                       # Crank-Nicholson ponderation
 
 # Calculation of initial parameters
@@ -63,10 +64,13 @@ del(x, y)
 # BC are stored in the following order [Bottom, Left, Right, Top] 
 # TBC = Type of boundary condition 
 # VBC = Value of boundary condition (g/m2) if Dirichlet (g/m2/m) if Neumann
+# BBi, RBi, LBi, TBi identify de node numbers that are part of the domain
 # ==============================================================================
 
 TBC = np.array([0, 1, 0, 1])
 VBC = np.array([0, 0, 0, 0])
+
+BBi, LBi, RBi, TBi = AUX.boundaries(Nx, Ny)
 
 # ==============================================================================
 # Calculation of nondimensional parameters of the ADE (Sx, Sy, CFLx and CFLy)
@@ -86,4 +90,9 @@ SM.show_sc(Sx, Sy, CFLx, CFLy)
 # ==============================================================================
 
 C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, 1e-8)
+
+# ==============================================================================
+# First time step (must be done in a forward time scheme since there are no 
+# other points)
+# ==============================================================================
 

@@ -25,6 +25,6 @@ def show_sc(Sx, Sy, CFLx, CFLy):
           '{:.5}'.format(np.abs(CFLx)), '\t', '{:.5}'.format(np.abs(CFLy)))
     print('================================')
     
-    time.sleep(2)
+    time.sleep(0.5)
 
     return 
