@@ -21,3 +21,19 @@ def boundaries(Nx, Ny):
     TBi = np.linspace(Nx * (Ny - 1), Nx * Ny - 1, Nx)
     
     return BBi, LBi, RBi, TBi
+
+# ==============================================================================
+# Function that identifies the outer ring where the high order derivatives 
+# cannot be implemented (OR stands for outer ring) 
+# ==============================================================================
+    
+def ring(Nx, Ny):
+    
+    BR = np.linspace(Nx + 1, 2 * Nx - 2, Nx -2)
+    LR = np.linspace(Nx * 2 + 1, Nx * (Ny - 3) + 1, Ny - 4)
+    RR = np.linspace(Nx * 3 - 2, Nx * (Ny - 2) - 2, Ny - 4)
+    TR = np.linspace(Nx * (Ny -2) + 1, Nx * (Ny - 1) - 2, Nx - 2)
+    OR = np.sort(np.concatenate((BR, LR, RR, TR), axis = 0))
+    
+    return OR
+

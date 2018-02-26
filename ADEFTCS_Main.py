@@ -33,19 +33,19 @@ Dy = 0.2                                        # Diff coeff y (m2/s)
 u = 0.1                                         # Horizontal velocity (m/s)
 v = 0.1                                         # Vertical velocity (m/s)
 M = 4.                                          # Mass injected (g)
-xC0 = 1                                         # x injection coordinate
-yC0 = 1                                         # y injection coordinate
+xC0 = 2                                         # x injection coordinate
+yC0 = 2                                         # y injection coordinate
 A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 
-# ==============================================================================
+# =============================================================================
 # Numerical parameters for the program. For Crank-Nicholson ponderation, theta 
 # factor means 0 = fully explicit, 1 = fully implicit
-# ==============================================================================
+# =============================================================================
 
 T = 10                                          # Total sim. time (s)
 dt = 0.1                                        # timestep size (s)
-Nx = 5                                          # Nodes in x direction
-Ny = 5                                          # Nodes in y direction 
+Nx = 11                                         # Nodes in x direction
+Ny = 11                                         # Nodes in y direction 
 theta = 0                                       # Crank-Nicholson ponderation
 
 # Calculation of initial parameters
@@ -54,10 +54,10 @@ dx = (XL - X0) / (Nx - 1)                       # dx (m)
 dy = (YL - Y0) / (Ny - 1)                       # dy (m)
 
 # Generating spatial mesh
-x = np.linspace(X0, XL, Nx)
-y = np.linspace(Y0, YL, Ny)
-X, Y = np.meshgrid(x,y)
-del(x, y)
+x = np.linspace(X0, XL, Nx)                     # 1D array style 
+y = np.linspace(Y0, YL, Ny)                     # 1D array style 
+X, Y = np.meshgrid(x,y)                         # Meshgrid for plotting
+del(x, y)                                       # Deleting useless arrays
 
 # ==============================================================================
 # Boundary condtions for the program 1 = Dirichlet, 0 = Neumann.
@@ -71,6 +71,7 @@ TBC = np.array([0, 1, 0, 1])
 VBC = np.array([0, 0, 0, 0])
 
 BBi, LBi, RBi, TBi = AUX.boundaries(Nx, Ny)
+ORi = AUX.ring(Nx, Ny)
 
 # ==============================================================================
 # Calculation of nondimensional parameters of the ADE (Sx, Sy, CFLx and CFLy)
@@ -93,6 +94,41 @@ C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, 1e-8)
 
 # ==============================================================================
 # First time step (must be done in a forward time scheme since there are no 
-# other points)
+# other points in time). The first step has a size dt, hence the total time is 
+# 1 * dt.
 # ==============================================================================
 
+# Calculating analytical solution for the first timestep
+Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, dt)
+
+C1e = np.zeros((Nx, Ny))
+
+# Imposing boundary conditions - matrix style (EXPLICIT METHOD)
+C1e[0, :] = Ca[0, :] 
+C1e[Nx - 1, :] = Ca[Nx -1, :]
+C1e[:, 0] = Ca[:, 0]
+C1e[:, Ny - 1] = Ca[:, Ny -1] 
+
+# Solving the outer ring - matrix style (low order derivatives) (EXPLICIT 
+# METHOD)
+
+# Bottom part of the ring
+for i in range(1, Nx - 1):
+    
+    C1e[1, i] = C0[1, i + 1] * Sx + C0[1, i - 1] * (Sx + CFLx) + C0[2, i] * Sy + C0[0, i] * (Sy + CFLy) + C0[1, i] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+#
+## Left part of the ring
+#for i in range(2, Ny - 1):
+#    C1e[i, 1] = 
+#
+## Right part of the ring
+#for i in range(2: Ny - 1):
+#    C1e[i, Nx - 2] =
+#
+## Top part of the ring
+#for i in range(2:Nx - 2):
+#    C1e[Ny - 2, i] =
+#
+
+# Solving the inner portion (high order aproximation) - matrix style (EXPLICIT 
+# METHOD)
