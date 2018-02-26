@@ -15,6 +15,7 @@ February 2018
 
 import numpy as np  
 import matplotlib.pyplot as plt
+import time
 import Screen_msgs as SM
 import Analyt as AN
 import Auxiliary as AUX
@@ -30,8 +31,8 @@ Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
 Dx = 0.2                                        # Diff coeff x (m2/s)
 Dy = 0.2                                        # Diff coeff y (m2/s)
-u = 0.1                                         # Horizontal velocity (m/s)
-v = 0.1                                         # Vertical velocity (m/s)
+u = 1.0                                         # Horizontal velocity (m/s)
+v = 0.0                                         # Vertical velocity (m/s)
 M = 4.                                          # Mass injected (g)
 xC0 = 2                                         # x injection coordinate
 yC0 = 2                                         # y injection coordinate
@@ -95,7 +96,7 @@ C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, 1e-8)
 # ==============================================================================
 # First time step (must be done in a forward time scheme since there are no 
 # other points in time). The first step has a size dt, hence the total time is 
-# 1 * dt.
+# 1 * dt
 # ==============================================================================
 
 # Calculating analytical solution for the first timestep
@@ -115,20 +116,37 @@ C1e[:, Ny - 1] = Ca[:, Ny -1]
 # Bottom part of the ring
 for i in range(1, Nx - 1):
     
-    C1e[1, i] = C0[1, i + 1] * Sx + C0[1, i - 1] * (Sx + CFLx) + C0[2, i] * Sy + C0[0, i] * (Sy + CFLy) + C0[1, i] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
-#
-## Left part of the ring
-#for i in range(2, Ny - 1):
-#    C1e[i, 1] = 
-#
-## Right part of the ring
-#for i in range(2: Ny - 1):
-#    C1e[i, Nx - 2] =
-#
-## Top part of the ring
-#for i in range(2:Nx - 2):
-#    C1e[Ny - 2, i] =
-#
+    C1e[1, i] = C0[1, i + 1] * Sx + C0[1, i - 1] * (Sx + CFLx) + C0[2, i] * \
+    Sy + C0[0, i] * (Sy + CFLy) + C0[1, i] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+
+# Left part of the ring
+for i in range(2, Ny - 1):
+    
+    C1e[i, 1] = C0[i + 1, 1] * Sy + C0[i - 1, 1] * (Sy + CFLy) + C0[i, 0] * \
+    (Sy + CFLy) + C0[i, 2] * Sy + C0[i, 1] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+
+# Right part of the ring
+for i in range(2, Ny - 1):
+    C1e[i, Nx - 2] = C0[i + 1, Nx - 2] * Sy + C0[i - 1, Nx - 2] * (CFLy + Sy) \
+    + C0[i, Nx - 1] * Sx + C0[i, Nx - 3] * (Sx + CFLx) + C0[i, Nx - 2] * \
+    (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+
+# Top part of the ring
+for i in range(2, Nx - 2):
+    C1e[Ny - 2, i] = C0[Ny - 1, i] * Sy + C0[Ny - 3, i] * (Sy + CFLy) + \
+    C0[Ny - 2, i + 1] * Sx + C0[Ny - 2, i - 1] * (Sx + CFLx) + C0[Ny - 2, i] * \
+    (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
 
 # Solving the inner portion (high order aproximation) - matrix style (EXPLICIT 
 # METHOD)
+    
+for i in range(2, Ny - 2):
+    
+    for j in range(2, Nx - 2):
+        
+        C1e[i, j] = C0[i + 1, j] * Sy + C0[i -1, j] * (Sy + CFLy) + \
+        C0[i, j + 1] + Sx + C0[i, j - 1] * (Sx + CFLx) + C0[i, j] * \
+        (1 - 2 * Sy - 2 * Sx - CFLx - CFLy)
+        
+# Checking error:
+ERR = C1e- Ca
