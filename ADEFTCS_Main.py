@@ -29,13 +29,13 @@ X0 = 0.                                         # Initial x point (m)
 XL = 5.                                         # Final y point (m)
 Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
-Dx = 0.2                                        # Diff coeff x (m2/s)
-Dy = 0.2                                        # Diff coeff y (m2/s)
+Dx = 0.2                                       # Diff coeff x (m2/s)
+Dy = 0.2                                       # Diff coeff y (m2/s)
 u = 0.3                                         # Horizontal velocity (m/s)
-v = 0.2                                        # Vertical velocity (m/s)
+v = 0.3                                         # Vertical velocity (m/s)
 M = 2.                                          # Mass injected (g)
-xC0 = 2.5                                       # x injection coordinate
-yC0 = 2.5                                       # y injection coordinate
+xC0 = 1.0                                       # x injection coordinate
+yC0 = 1.0                                       # y injection coordinate
 t0 = 1.                                         # Initial time (s)
 A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 
@@ -45,9 +45,9 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 # =============================================================================
 
 T = 10                                          # Total sim. time (s)
-dt = 0.1                                        # timestep size (s)
-Nx = 11                                         # Nodes in x direction
-Ny = 11                                         # Nodes in y direction 
+dt = 0.001                                      # timestep size (s)
+Nx = 101                                        # Nodes in x direction
+Ny = 101                                        # Nodes in y direction 
 theta = 0                                       # Crank-Nicholson ponderation
 
 # Calculation of initial parameters
@@ -143,7 +143,13 @@ for i in range(2, Nx - 2):
 
 # Solving the inner portion (high order aproximation) - matrix style (EXPLICIT 
 # METHOD) CHECK COEFFICIENTS SINCE THESE ARE THE ONES WHEN LEAPFROG IS IMPLE-
-# MENTED
+# MENTED#            # High order approximation for implementation
+#            C2e[i, j] = -C1e[i + 2, j] * (Sy / 6) + C1e[i + 1, j] * (8 * Sy / \
+#            3) + C1e[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C1e[i - 2, j] * \
+#            (CFLy + Sy / 6) - C1e[i, j + 2] * (Sx / 6) + C1e[i, j + 1] * (8 * \
+#            Sx / 3) + C1e[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C1e[i, j - 2] \
+#            *(Sx / 6 + CFLx) + C1e[i , j] * (-5 * Sx - 5 * Sy - 3 * CFLx - 3 * \
+#            CFLy)
     
 for i in range(2, Ny - 2):
     
@@ -156,11 +162,12 @@ for i in range(2, Ny - 2):
 #        2 * Sy - CFLx - CFLy)
 
         # High order approximation for implementation
-        C1e[i, j] = -C0[i + 2, j] * (Sy / 6) + C0[i + 1, j] * (8 * Sy / 3) + \
-        C0[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C0[i - 2, j] * (CFLy + \
-        Sy / 6) - C0[i, j + 2] * (Sx / 6) + C0[i, j + 1] * (8 * Sx / 3) + \
-        C0[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C0[i, j - 2] *(Sx / 6 + CFLx) \
-        + C0[i , j] * (1 - 5 * Sx - 5 * Sy - 3 * CFLx - 3 * CFLy)
+        C1e[i, j] = -C0[i + 2, j] * (Sy / 12) + C0[i + 1, j] * (4 * Sy / 3) + \
+        C0[i - 1, j] * (2 * CFLy + 4 * Sy / 3) - C0[i - 2, j] * (0.5 * CFLy + \
+        Sy / 12) - C0[i, j + 2] * (Sx / 12) + C0[i, j + 1] * (4 * Sx / 3) + \
+        C0[i, j - 1] * (2 * CFLx + 4 * Sx / 3) - C0[i, j - 2] *(Sx / 12 + \
+        0.5 * CFLx) + C0[i , j] * (1 - 5 * Sx / 2 - 5 * Sy / 2 - 3 * CFLx / 2 \
+        - 3 * CFLy / 2)
         
 # Checking error and saving it in the assigned array
 errt[0] = np.linalg.norm(C1e - Ca)
@@ -173,7 +180,10 @@ errt[0] = np.linalg.norm(C1e - Ca)
 # Defining vector for t+1 step
 C2e = np.zeros((Nx, Ny))
 
-for I in range(2, nT):
+# Activating interactive plotting
+plt.ion()
+
+for I in range(2, 100):
     
     # Calculating analytical solution for the given timestep
     Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + I * dt)
@@ -188,52 +198,60 @@ for I in range(2, nT):
     # Bottom part of the ring
     for j in range(1, Nx - 1):
         
-        C2e[1, j] = C0[1, j + 1] * Sx + C0[1, j - 1] * (Sx + CFLx) + C0[2, j] \
-        * Sy + C0[0, j] * (Sy + CFLy) + C0[1, j] * (1 - 2 * Sx - 2 * Sy - \
-        CFLx - CFLy)
+        C2e[1, j] = C1e[1, j + 1] * Sx + C1e[1, j - 1] * (Sx + CFLx) + \
+        C1e[2, j] * Sy + C1e[0, j] * (Sy + CFLy) + C1e[1, j] * (-2 * Sx - 2 \
+        * Sy - CFLx - CFLy) + C0[1, j]
 
     # Left part of the ring
     for j in range(2, Ny - 1):
         
-        C2e[j, 1] = C0[j + 1, 1] * Sy + C0[j - 1, 1] * (Sy + CFLy) + C0[j, 0] \
-        * (Sy + CFLy) + C0[j, 2] * Sy + C0[j, 1] * (1 - 2 * Sx - 2 * Sy - \
-        CFLx - CFLy)
+        C2e[j, 1] = C1e[j + 1, 1] * Sy + C1e[j - 1, 1] * (Sy + CFLy) + \
+        C1e[j, 0] * (Sy + CFLy) + C1e[j, 2] * Sy + C1e[j, 1] * (-2 * Sx - 2 * \
+        Sy - CFLx - CFLy) + C0[j, 1]
         
     # Right part of the ring
     for j in range(2, Ny - 1):
         
-        C2e[j, Nx - 2] = C0[j + 1, Nx - 2] * Sy + C0[j - 1, Nx - 2] * (CFLy + \
-        Sy) + C0[j, Nx - 1] * Sx + C0[j, Nx - 3] * (Sx + CFLx) + C0[j, Nx - \
-        2] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+        C2e[j, Nx - 2] = C1e[j + 1, Nx - 2] * Sy + C1e[j - 1, Nx - 2] * (CFLy \
+        + Sy) + C1e[j, Nx - 1] * Sx + C1e[j, Nx - 3] * (Sx + CFLx) + C1e[j, Nx \
+        - 2] * (-2 * Sx - 2 * Sy - CFLx - CFLy) + C0[j, Nx - 2]
 
     # Top part of the ring
     for j in range(2, Nx - 2):
         
-        C2e[Ny - 2, j] = C0[Ny - 1, j] * Sy + C0[Ny - 3, j] * (Sy + CFLy) + \
-        C0[Ny - 2, j + 1] * Sx + C0[Ny - 2, j - 1] * (Sx + CFLx) + C0[Ny - 2, \
-        j] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+        C2e[Ny - 2, j] = C1e[Ny - 1, j] * Sy + C1e[Ny - 3, j] * (Sy + CFLy) + \
+        C1e[Ny - 2, j + 1] * Sx + C1e[Ny - 2, j - 1] * (Sx + CFLx) + C1e[Ny - \
+        2, j] * (-2 * Sx - 2 * Sy - CFLx - CFLy) + C0[Ny - 2, j]
     
     # Calculating inner nodes (high order derivatives)
     for i in range(2, Ny - 2):
     
         for j in range(2, Nx - 2):
 
-            # Low order derivatives (just for testing purposes, though it can be 
-            # implemented)
-            C1e[i, j] = Sx * C0[i, j + 1] + (Sx + CFLx) * C0[i, j - 1] + Sy * \
-            C0[i + 1, j] + (Sy + CFLy) * C0[i - 1, j] + C0[i, j] * (-2 * Sx - \
-            2 * Sy - CFLx - CFLy)
+#            # Low order derivatives (just for testing purposes, though it can 
+#            # be implemented)
+#            C2e[i, j] = Sx * C1e[i, j + 1] + (Sx + CFLx) * C1e[i, j - 1] + Sy \
+#            * C1e[i + 1, j] + (Sy + CFLy) * C1e[i - 1, j] + C1e[i, j] * (-2 * \
+#            Sx - 2 * Sy - CFLx - CFLy) + C0[i, j]
 
             # High order approximation for implementation
-            C1e[i, j] = -C0[i + 2, j] * (Sy / 6) + C0[i + 1, j] * (8 * Sy / 3) \
-            + C0[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C0[i - 2, j] * (CFLy + \
-            Sy / 6) - C0[i, j + 2] * (Sx / 6) + C0[i, j + 1] * (8 * Sx / 3) + \
-            C0[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C0[i, j - 2] *(Sx / 6 + \
-            CFLx) + C0[i , j] * (1 - 5 * Sx - 5 * Sy - 3 * CFLx - 3 * CFLy)
+            C2e[i, j] = -C1e[i + 2, j] * (Sy / 6) + C1e[i + 1, j] * (8 * Sy / \
+            3) + C1e[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C1e[i - 2, j] * \
+            (CFLy + Sy / 6) - C1e[i, j + 2] * (Sx / 6) + C1e[i, j + 1] * (8 * \
+            Sx / 3) + C1e[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C1e[i, j - 2] \
+            *(Sx / 6 + CFLx) + C1e[i , j] * (-5 * Sx - 5 * Sy - 3 * CFLx - 3 * \
+            CFLy) + C0[i, j]
     
     
     # Storing error in the errt vector
     errt[I - 1] = np.linalg.norm(C2e - Ca)
     
+    # Plotting relevant data for the process
+    plt.contourf(X,Y,C2e)
+    plt.draw()
+    plt.pause(0.1)
     
-    
+    # Changing the variables for the next step
+    C0 = C1e
+    C1e = C2e
+    C2e = np.zeros((Nx, Ny))    
