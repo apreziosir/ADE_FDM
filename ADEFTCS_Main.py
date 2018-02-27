@@ -31,11 +31,12 @@ Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
 Dx = 0.2                                        # Diff coeff x (m2/s)
 Dy = 0.2                                        # Diff coeff y (m2/s)
-u = 1.0                                         # Horizontal velocity (m/s)
-v = 0.0                                         # Vertical velocity (m/s)
-M = 4.                                          # Mass injected (g)
-xC0 = 2                                         # x injection coordinate
-yC0 = 2                                         # y injection coordinate
+u = 0.3                                         # Horizontal velocity (m/s)
+v = 0.2                                        # Vertical velocity (m/s)
+M = 2.                                          # Mass injected (g)
+xC0 = 2.5                                       # x injection coordinate
+yC0 = 2.5                                       # y injection coordinate
+t0 = 1.                                         # Initial time (s)
 A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 
 # =============================================================================
@@ -50,7 +51,7 @@ Ny = 11                                         # Nodes in y direction
 theta = 0                                       # Crank-Nicholson ponderation
 
 # Calculation of initial parameters
-nT = np.ceil(T / dt)                            # Number of timesteps
+nT = int(np.ceil((T - t0) / dt))                # Number of timesteps
 dx = (XL - X0) / (Nx - 1)                       # dx (m)
 dy = (YL - Y0) / (Ny - 1)                       # dy (m)
 
@@ -59,6 +60,9 @@ x = np.linspace(X0, XL, Nx)                     # 1D array style
 y = np.linspace(Y0, YL, Ny)                     # 1D array style 
 X, Y = np.meshgrid(x,y)                         # Meshgrid for plotting
 del(x, y)                                       # Deleting useless arrays
+
+# Generating error vectors (for svaing and comparing results)
+errt = np.zeros(int(nT))                        # Error evolution in time
 
 # ==============================================================================
 # Boundary condtions for the program 1 = Dirichlet, 0 = Neumann.
@@ -87,11 +91,10 @@ SM.show_sc(Sx, Sy, CFLx, CFLy)
 
 # ==============================================================================
 # Imposing initial condition as an early analytical solution of the ADE equation
-# It is almost as if a pulse is injected in (x0, y0). The analytical solution 
-# does not work with t = 0
+# It is C(x0, y0, t0).
 # ==============================================================================
 
-C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, 1e-8)
+C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0)
 
 # ==============================================================================
 # First time step (must be done in a forward time scheme since there are no 
@@ -100,7 +103,7 @@ C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, 1e-8)
 # ==============================================================================
 
 # Calculating analytical solution for the first timestep
-Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, dt)
+Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + dt)
 
 C1e = np.zeros((Nx, Ny))
 
@@ -111,7 +114,8 @@ C1e[:, 0] = Ca[:, 0]
 C1e[:, Ny - 1] = Ca[:, Ny -1] 
 
 # Solving the outer ring - matrix style (low order derivatives) (EXPLICIT 
-# METHOD)
+# METHOD) - CHECK COEFFICIENTS SINCE THESE ARE THE ONES WHEN LEAPFROG IS IMPLE-
+# MENTED
 
 # Bottom part of the ring
 for i in range(1, Nx - 1):
@@ -138,15 +142,98 @@ for i in range(2, Nx - 2):
     (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
 
 # Solving the inner portion (high order aproximation) - matrix style (EXPLICIT 
-# METHOD)
+# METHOD) CHECK COEFFICIENTS SINCE THESE ARE THE ONES WHEN LEAPFROG IS IMPLE-
+# MENTED
     
 for i in range(2, Ny - 2):
     
     for j in range(2, Nx - 2):
+
+#        # Low order derivatives (just for testing purposes, though it can be 
+#        # implemented)
+#        C1e[i, j] = Sx * C0[i, j + 1] + (Sx + CFLx) * C0[i, j - 1] + Sy * \
+#        C0[i + 1, j] + (Sy + CFLy) * C0[i - 1, j] + C0[i, j] * (1 - 2 * Sx - \
+#        2 * Sy - CFLx - CFLy)
+
+        # High order approximation for implementation
+        C1e[i, j] = -C0[i + 2, j] * (Sy / 6) + C0[i + 1, j] * (8 * Sy / 3) + \
+        C0[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C0[i - 2, j] * (CFLy + \
+        Sy / 6) - C0[i, j + 2] * (Sx / 6) + C0[i, j + 1] * (8 * Sx / 3) + \
+        C0[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C0[i, j - 2] *(Sx / 6 + CFLx) \
+        + C0[i , j] * (1 - 5 * Sx - 5 * Sy - 3 * CFLx - 3 * CFLy)
         
-        C1e[i, j] = C0[i + 1, j] * Sy + C0[i -1, j] * (Sy + CFLy) + \
-        C0[i, j + 1] + Sx + C0[i, j - 1] * (Sx + CFLx) + C0[i, j] * \
-        (1 - 2 * Sy - 2 * Sx - CFLx - CFLy)
+# Checking error and saving it in the assigned array
+errt[0] = np.linalg.norm(C1e - Ca)
+
+# ==============================================================================
+# General time loop after first time step (implementing the leapfrog explicit
+# scheme)
+# ==============================================================================
+
+# Defining vector for t+1 step
+C2e = np.zeros((Nx, Ny))
+
+for I in range(2, nT):
+    
+    # Calculating analytical solution for the given timestep
+    Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + I * dt)
+    
+    # Imposing boundary conditions
+    C2e[0, :] = Ca[0, :] 
+    C2e[Nx - 1, :] = Ca[Nx -1, :]
+    C2e[:, 0] = Ca[:, 0]
+    C2e[:, Ny - 1] = Ca[:, Ny -1] 
+    
+    # Calculating outer ring (low order derivatives)
+    # Bottom part of the ring
+    for j in range(1, Nx - 1):
         
-# Checking error:
-ERR = C1e- Ca
+        C2e[1, j] = C0[1, j + 1] * Sx + C0[1, j - 1] * (Sx + CFLx) + C0[2, j] \
+        * Sy + C0[0, j] * (Sy + CFLy) + C0[1, j] * (1 - 2 * Sx - 2 * Sy - \
+        CFLx - CFLy)
+
+    # Left part of the ring
+    for j in range(2, Ny - 1):
+        
+        C2e[j, 1] = C0[j + 1, 1] * Sy + C0[j - 1, 1] * (Sy + CFLy) + C0[j, 0] \
+        * (Sy + CFLy) + C0[j, 2] * Sy + C0[j, 1] * (1 - 2 * Sx - 2 * Sy - \
+        CFLx - CFLy)
+        
+    # Right part of the ring
+    for j in range(2, Ny - 1):
+        
+        C2e[j, Nx - 2] = C0[j + 1, Nx - 2] * Sy + C0[j - 1, Nx - 2] * (CFLy + \
+        Sy) + C0[j, Nx - 1] * Sx + C0[j, Nx - 3] * (Sx + CFLx) + C0[j, Nx - \
+        2] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+
+    # Top part of the ring
+    for j in range(2, Nx - 2):
+        
+        C2e[Ny - 2, j] = C0[Ny - 1, j] * Sy + C0[Ny - 3, j] * (Sy + CFLy) + \
+        C0[Ny - 2, j + 1] * Sx + C0[Ny - 2, j - 1] * (Sx + CFLx) + C0[Ny - 2, \
+        j] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
+    
+    # Calculating inner nodes (high order derivatives)
+    for i in range(2, Ny - 2):
+    
+        for j in range(2, Nx - 2):
+
+            # Low order derivatives (just for testing purposes, though it can be 
+            # implemented)
+            C1e[i, j] = Sx * C0[i, j + 1] + (Sx + CFLx) * C0[i, j - 1] + Sy * \
+            C0[i + 1, j] + (Sy + CFLy) * C0[i - 1, j] + C0[i, j] * (-2 * Sx - \
+            2 * Sy - CFLx - CFLy)
+
+            # High order approximation for implementation
+            C1e[i, j] = -C0[i + 2, j] * (Sy / 6) + C0[i + 1, j] * (8 * Sy / 3) \
+            + C0[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C0[i - 2, j] * (CFLy + \
+            Sy / 6) - C0[i, j + 2] * (Sx / 6) + C0[i, j + 1] * (8 * Sx / 3) + \
+            C0[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C0[i, j - 2] *(Sx / 6 + \
+            CFLx) + C0[i , j] * (1 - 5 * Sx - 5 * Sy - 3 * CFLx - 3 * CFLy)
+    
+    
+    # Storing error in the errt vector
+    errt[I - 1] = np.linalg.norm(C2e - Ca)
+    
+    
+    

@@ -13,13 +13,13 @@ import numpy as np
 # domain with constant velocity fields
 # ==============================================================================
 
-def difuana(M, A, Dx, Dy, u, v, x0, y0, x, y, t):
+def difuana(M, A, Dx, Dy, u, v, x0, y0, X, Y, t):
     
-    temp1 = A * 4 * np.pi * (t) * np.sqrt(Dx * Dy)
+    temp1 = A * 4 * np.pi * t * np.sqrt(Dx * Dy)
     
-    temp2 = ((x - x0 - u * t) ** 2) / (4 * Dx * t)
+    temp2 = ((X - x0 - u * t) ** 2) / (4 * Dx * t)
     
-    temp3 = ((y - y0 - v * t) ** 2) / (4 * Dy * t)
+    temp3 = ((Y - y0 - v * t) ** 2) / (4 * Dy * t)
     
     C = (M / temp1) * np.exp(-temp2 - temp3)
     
