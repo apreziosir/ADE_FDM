@@ -4,7 +4,7 @@
 2D Transport equation solver for FDM with FTCS scheme.
 High order derivatives are applied in the points where it is possible and an 
 upwinding scheme is implemented for advection. 
-The temporal term is treated with a Leap Frog approximation
+The temporal term is treated with a second order Adams-Bashforth scheme
 @author: Antonio Preziosi-Ribero
 CFD - Pontificia Universidad Javeriana
 February 2018
@@ -29,11 +29,11 @@ X0 = 0.                                         # Initial x point (m)
 XL = 5.                                         # Final y point (m)
 Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
-Dx = 0.2                                       # Diff coeff x (m2/s)
-Dy = 0.2                                       # Diff coeff y (m2/s)
-u = 0.3                                         # Horizontal velocity (m/s)
+Dx = 0.02                                       # Diff coeff x (m2/s)
+Dy = 0.02                                       # Diff coeff y (m2/s)
+u = 1.8                                         # Horizontal velocity (m/s)
 v = 0.3                                         # Vertical velocity (m/s)
-M = 2.                                          # Mass injected (g)
+M = 10.                                         # Mass injected (g)
 xC0 = 1.0                                       # x injection coordinate
 yC0 = 1.0                                       # y injection coordinate
 t0 = 1.                                         # Initial time (s)
@@ -45,9 +45,9 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 # =============================================================================
 
 T = 10                                          # Total sim. time (s)
-dt = 0.001                                      # timestep size (s)
-Nx = 101                                        # Nodes in x direction
-Ny = 101                                        # Nodes in y direction 
+dt = 0.01                                      # timestep size (s)
+Nx = 51                                        # Nodes in x direction
+Ny = 51                                        # Nodes in y direction 
 theta = 0                                       # Crank-Nicholson ponderation
 
 # Calculation of initial parameters
@@ -96,6 +96,9 @@ SM.show_sc(Sx, Sy, CFLx, CFLy)
 
 C0 = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0)
 
+# Estimating Cmax for plotting purposes
+Cmax = np.max(C0)
+
 # ==============================================================================
 # First time step (must be done in a forward time scheme since there are no 
 # other points in time). The first step has a size dt, hence the total time is 
@@ -114,8 +117,7 @@ C1e[:, 0] = Ca[:, 0]
 C1e[:, Ny - 1] = Ca[:, Ny -1] 
 
 # Solving the outer ring - matrix style (low order derivatives) (EXPLICIT 
-# METHOD) - CHECK COEFFICIENTS SINCE THESE ARE THE ONES WHEN LEAPFROG IS IMPLE-
-# MENTED
+# METHOD)
 
 # Bottom part of the ring
 for i in range(1, Nx - 1):
@@ -141,16 +143,8 @@ for i in range(2, Nx - 2):
     C0[Ny - 2, i + 1] * Sx + C0[Ny - 2, i - 1] * (Sx + CFLx) + C0[Ny - 2, i] * \
     (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
 
-# Solving the inner portion (high order aproximation) - matrix style (EXPLICIT 
-# METHOD) CHECK COEFFICIENTS SINCE THESE ARE THE ONES WHEN LEAPFROG IS IMPLE-
-# MENTED#            # High order approximation for implementation
-#            C2e[i, j] = -C1e[i + 2, j] * (Sy / 6) + C1e[i + 1, j] * (8 * Sy / \
-#            3) + C1e[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C1e[i - 2, j] * \
-#            (CFLy + Sy / 6) - C1e[i, j + 2] * (Sx / 6) + C1e[i, j + 1] * (8 * \
-#            Sx / 3) + C1e[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C1e[i, j - 2] \
-#            *(Sx / 6 + CFLx) + C1e[i , j] * (-5 * Sx - 5 * Sy - 3 * CFLx - 3 * \
-#            CFLy)
-    
+# Solving inner portion of the domain with forward time derivative and high 
+# order spatial terms (just for first time step)
 for i in range(2, Ny - 2):
     
     for j in range(2, Nx - 2):
@@ -180,8 +174,18 @@ errt[0] = np.linalg.norm(C1e - Ca)
 # Defining vector for t+1 step
 C2e = np.zeros((Nx, Ny))
 
-# Activating interactive plotting
+# Activating interactive plotting and creating figure for interactive purpose of
+# the program
 plt.ion()
+fig, axarr = plt.subplots(2, 2)
+
+# Defining plots
+cf1 = axarr[0, 0]
+cf2 = axarr[0, 1]
+cf3 = axarr[1, 0]
+cf4 = axarr[1, 1]
+
+fig.colorbar(cf1, ax=axarr[0, 0], ticks = np.linspace(0, Cmax, 5))
 
 for I in range(2, 100):
     
@@ -195,33 +199,37 @@ for I in range(2, 100):
     C2e[:, Ny - 1] = Ca[:, Ny -1] 
     
     # Calculating outer ring (low order derivatives)
-    # Bottom part of the ring
+    # Bottom part of the ring AB IMPLEMENTED
     for j in range(1, Nx - 1):
         
-        C2e[1, j] = C1e[1, j + 1] * Sx + C1e[1, j - 1] * (Sx + CFLx) + \
-        C1e[2, j] * Sy + C1e[0, j] * (Sy + CFLy) + C1e[1, j] * (-2 * Sx - 2 \
-        * Sy - CFLx - CFLy) + C0[1, j]
+        C2e[1, j] = C1e[1, j + 1] * (2 * Sx / 3) + C1e[1, j - 1] * (2 / 3) * \
+        (Sx + CFLx) + C1e[2, j] * (2 * Sy / 3) + C1e[0, j] * (2 / 3) * (Sy + \
+        CFLy) + C1e[1, j] * (1 / 3) * (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) \
+        - C0[1, j] * (1 / 3)
 
-    # Left part of the ring
+    # Left part of the ring AB IMPLEMENTED
     for j in range(2, Ny - 1):
         
-        C2e[j, 1] = C1e[j + 1, 1] * Sy + C1e[j - 1, 1] * (Sy + CFLy) + \
-        C1e[j, 0] * (Sy + CFLy) + C1e[j, 2] * Sy + C1e[j, 1] * (-2 * Sx - 2 * \
-        Sy - CFLx - CFLy) + C0[j, 1]
+        C2e[j, 1] = C1e[j + 1, 1] * (2 * Sy / 3) + C1e[j - 1, 1] * (2 / 3) * \
+        (Sy + CFLy) + C1e[j, 0] * (2 / 3) * (Sy + CFLy) + C1e[j, 2] * (2 * Sy \
+        / 3) + C1e[j, 1] * (1 / 3) * (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) \
+        - C0[j, 1] * (1 / 3)
         
-    # Right part of the ring
+    # Right part of the ring AB IMPLEMENTED
     for j in range(2, Ny - 1):
         
-        C2e[j, Nx - 2] = C1e[j + 1, Nx - 2] * Sy + C1e[j - 1, Nx - 2] * (CFLy \
-        + Sy) + C1e[j, Nx - 1] * Sx + C1e[j, Nx - 3] * (Sx + CFLx) + C1e[j, Nx \
-        - 2] * (-2 * Sx - 2 * Sy - CFLx - CFLy) + C0[j, Nx - 2]
+        C2e[j, Nx - 2] = C1e[j + 1, Nx - 2] * (2 * Sy / 3) + C1e[j - 1, \
+        Nx - 2] * (2 / 3) * (CFLy + Sy) + C1e[j, Nx - 1] * (2 * Sx / 3) + \
+        C1e[j, Nx - 3] * (2 / 3) * (Sx + CFLx) + C1e[j, Nx - 2] * (1 / 3) * \
+        (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) - C0[j, Nx - 2] * (1 / 3)
 
-    # Top part of the ring
+    # Top part of the ring AB IMPLEMENTED
     for j in range(2, Nx - 2):
         
-        C2e[Ny - 2, j] = C1e[Ny - 1, j] * Sy + C1e[Ny - 3, j] * (Sy + CFLy) + \
-        C1e[Ny - 2, j + 1] * Sx + C1e[Ny - 2, j - 1] * (Sx + CFLx) + C1e[Ny - \
-        2, j] * (-2 * Sx - 2 * Sy - CFLx - CFLy) + C0[Ny - 2, j]
+        C2e[Ny - 2, j] = C1e[Ny - 1, j] * (2 * Sy / 3) + C1e[Ny - 3, j] * \
+        (2 / 3) * (Sy + CFLy) + C1e[Ny - 2, j + 1] * (2 * Sx / 3) + \
+        C1e[Ny - 2, j - 1] * (2 / 3) * (Sx + CFLx) + C1e[Ny - 2, j] * (1 / 3) \
+        * (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) - C0[Ny - 2, j] * (1 / 3)
     
     # Calculating inner nodes (high order derivatives)
     for i in range(2, Ny - 2):
@@ -235,19 +243,24 @@ for I in range(2, 100):
 #            Sx - 2 * Sy - CFLx - CFLy) + C0[i, j]
 
             # High order approximation for implementation
-            C2e[i, j] = -C1e[i + 2, j] * (Sy / 6) + C1e[i + 1, j] * (8 * Sy / \
-            3) + C1e[i - 1, j] * (4 * CFLy + 8 * Sy / 3) - C1e[i - 2, j] * \
-            (CFLy + Sy / 6) - C1e[i, j + 2] * (Sx / 6) + C1e[i, j + 1] * (8 * \
-            Sx / 3) + C1e[i, j - 1] * (4 * CFLx + 8 * Sx / 3) - C1e[i, j - 2] \
-            *(Sx / 6 + CFLx) + C1e[i , j] * (-5 * Sx - 5 * Sy - 3 * CFLx - 3 * \
-            CFLy) + C0[i, j]
+            C2e[i, j] = -C1e[i + 2, j] * (Sy / 18) + C1e[i + 1, j] * (8 * Sy / \
+            9) + C1e[i - 1, j] * (4 * CFLy / 3 + 8 * Sy / 9) - C1e[i - 2, j] * \
+            (CFLy / 3 + Sy / 18) - C1e[i, j + 2] * (Sx / 6) + C1e[i, j + 1] * \
+            (8 * Sx / 9) + C1e[i, j - 1] * (4 * CFLx / 3 + 8 * Sx / 9) - \
+            C1e[i, j - 2] * (Sx / 18 + CFLx / 3) + C1e[i , j] * (-5 * Sx / 3 - \
+            5 * Sy / 3 - CFLx - CFLy + 4 / 3) - C0[i, j] * (1 / 3)
     
     
     # Storing error in the errt vector
     errt[I - 1] = np.linalg.norm(C2e - Ca)
     
     # Plotting relevant data for the process
-    plt.contourf(X,Y,C2e)
+    cf = axarr[0 ,0].contourf(X,Y,C2e)
+    axarr[0 ,0].set_title('Numerical solution')
+    axarr[0, 1].contourf(X, Y, Ca)
+    axarr[0, 1].set_title('Analytical solution')
+    axarr[1, 0].contourf(X, Y, np.abs(C2e - Ca))
+    axarr[1, 0].set_title('Error')
     plt.draw()
     plt.pause(0.1)
     
