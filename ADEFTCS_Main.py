@@ -31,7 +31,7 @@ Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
 Dx = 0.02                                       # Diff coeff x (m2/s)
 Dy = 0.02                                       # Diff coeff y (m2/s)
-u = 1.8                                         # Horizontal velocity (m/s)
+u = 0.3                                         # Horizontal velocity (m/s)
 v = 0.3                                         # Vertical velocity (m/s)
 M = 10.                                         # Mass injected (g)
 xC0 = 1.0                                       # x injection coordinate
@@ -46,9 +46,8 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 
 T = 10                                          # Total sim. time (s)
 dt = 0.01                                      # timestep size (s)
-Nx = 51                                        # Nodes in x direction
-Ny = 51                                        # Nodes in y direction 
-theta = 0                                       # Crank-Nicholson ponderation
+Nx = 101                                        # Nodes in x direction
+Ny = 101                                        # Nodes in y direction 
 
 # Calculation of initial parameters
 nT = int(np.ceil((T - t0) / dt))                # Number of timesteps
@@ -108,163 +107,65 @@ Cmax = np.max(C0)
 # Calculating analytical solution for the first timestep
 Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + dt)
 
-C1e = np.zeros((Nx, Ny))
+C1e = np.zeros((Ny, Nx))
+
+C1e = C0 + dt * AUX.ev_sp(C0, Dx, Dy, dx, dy, u, v, Nx, Ny)
 
 # Imposing boundary conditions - matrix style (EXPLICIT METHOD)
 C1e[0, :] = Ca[0, :] 
-C1e[Nx - 1, :] = Ca[Nx -1, :]
+C1e[Ny - 1, :] = Ca[Ny -1, :]
 C1e[:, 0] = Ca[:, 0]
-C1e[:, Ny - 1] = Ca[:, Ny -1] 
+C1e[:, Nx - 1] = Ca[:, Nx - 1] 
 
-# Solving the outer ring - matrix style (low order derivatives) (EXPLICIT 
-# METHOD)
-
-# Bottom part of the ring
-for i in range(1, Nx - 1):
-    
-    C1e[1, i] = C0[1, i + 1] * Sx + C0[1, i - 1] * (Sx + CFLx) + C0[2, i] * \
-    Sy + C0[0, i] * (Sy + CFLy) + C0[1, i] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
-
-# Left part of the ring
-for i in range(2, Ny - 1):
-    
-    C1e[i, 1] = C0[i + 1, 1] * Sy + C0[i - 1, 1] * (Sy + CFLy) + C0[i, 0] * \
-    (Sy + CFLy) + C0[i, 2] * Sy + C0[i, 1] * (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
-
-# Right part of the ring
-for i in range(2, Ny - 1):
-    C1e[i, Nx - 2] = C0[i + 1, Nx - 2] * Sy + C0[i - 1, Nx - 2] * (CFLy + Sy) \
-    + C0[i, Nx - 1] * Sx + C0[i, Nx - 3] * (Sx + CFLx) + C0[i, Nx - 2] * \
-    (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
-
-# Top part of the ring
-for i in range(2, Nx - 2):
-    C1e[Ny - 2, i] = C0[Ny - 1, i] * Sy + C0[Ny - 3, i] * (Sy + CFLy) + \
-    C0[Ny - 2, i + 1] * Sx + C0[Ny - 2, i - 1] * (Sx + CFLx) + C0[Ny - 2, i] * \
-    (1 - 2 * Sx - 2 * Sy - CFLx - CFLy)
-
-# Solving inner portion of the domain with forward time derivative and high 
-# order spatial terms (just for first time step)
-for i in range(2, Ny - 2):
-    
-    for j in range(2, Nx - 2):
-
-#        # Low order derivatives (just for testing purposes, though it can be 
-#        # implemented)
-#        C1e[i, j] = Sx * C0[i, j + 1] + (Sx + CFLx) * C0[i, j - 1] + Sy * \
-#        C0[i + 1, j] + (Sy + CFLy) * C0[i - 1, j] + C0[i, j] * (1 - 2 * Sx - \
-#        2 * Sy - CFLx - CFLy)
-
-        # High order approximation for implementation
-        C1e[i, j] = -C0[i + 2, j] * (Sy / 12) + C0[i + 1, j] * (4 * Sy / 3) + \
-        C0[i - 1, j] * (2 * CFLy + 4 * Sy / 3) - C0[i - 2, j] * (0.5 * CFLy + \
-        Sy / 12) - C0[i, j + 2] * (Sx / 12) + C0[i, j + 1] * (4 * Sx / 3) + \
-        C0[i, j - 1] * (2 * CFLx + 4 * Sx / 3) - C0[i, j - 2] *(Sx / 12 + \
-        0.5 * CFLx) + C0[i , j] * (1 - 5 * Sx / 2 - 5 * Sy / 2 - 3 * CFLx / 2 \
-        - 3 * CFLy / 2)
-        
-# Checking error and saving it in the assigned array
 errt[0] = np.linalg.norm(C1e - Ca)
 
-# ==============================================================================
-# General time loop after first time step (implementing the leapfrog explicit
-# scheme)
-# ==============================================================================
+# Entering the main time loop and calculating each concentration field 
+# numerically and analytically
 
-# Defining vector for t+1 step
-C2e = np.zeros((Nx, Ny))
+# Second array declaration
+C2e = np.zeros((Ny, Nx))
+err = np.zeros((Ny, Nx))
 
-# Activating interactive plotting and creating figure for interactive purpose of
-# the program
+# Initiating plotting function
 plt.ion()
 fig, axarr = plt.subplots(2, 2)
 
-# Defining plots
-cf1 = axarr[0, 0]
-cf2 = axarr[0, 1]
-cf3 = axarr[1, 0]
-cf4 = axarr[1, 1]
 
-fig.colorbar(cf1, ax=axarr[0, 0], ticks = np.linspace(0, Cmax, 5))
-
-for I in range(2, 100):
+for I in range(2, nT):
     
-    # Calculating analytical solution for the given timestep
+    # Calculating analytical solution for the time step
     Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + I * dt)
     
-    # Imposing boundary conditions
+    # Spatial function evaluated in t
+    sp0 = AUX.ev_sp(C0, Dx, Dy, dx, dy, u, v, Nx, Ny)
+    
+    # Spatial function evaluated in t - 1
+    sp1 = AUX.ev_sp(C1e, Dx, Dy, dx, dy, u, v, Nx, Ny)
+    
+    # Implementing 2nd order Adams-Bashforth
+    C2e = C1e + (dt / 2) * (3 * sp0 - sp1)
+    
+    # Imposing Boundary conditions
     C2e[0, :] = Ca[0, :] 
-    C2e[Nx - 1, :] = Ca[Nx -1, :]
+    C2e[Ny - 1, :] = Ca[Ny -1, :]
     C2e[:, 0] = Ca[:, 0]
-    C2e[:, Ny - 1] = Ca[:, Ny -1] 
+    C2e[:, Nx - 1] = Ca[:, Nx - 1]
     
-    # Calculating outer ring (low order derivatives)
-    # Bottom part of the ring AB IMPLEMENTED
-    for j in range(1, Nx - 1):
-        
-        C2e[1, j] = C1e[1, j + 1] * (2 * Sx / 3) + C1e[1, j - 1] * (2 / 3) * \
-        (Sx + CFLx) + C1e[2, j] * (2 * Sy / 3) + C1e[0, j] * (2 / 3) * (Sy + \
-        CFLy) + C1e[1, j] * (1 / 3) * (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) \
-        - C0[1, j] * (1 / 3)
-
-    # Left part of the ring AB IMPLEMENTED
-    for j in range(2, Ny - 1):
-        
-        C2e[j, 1] = C1e[j + 1, 1] * (2 * Sy / 3) + C1e[j - 1, 1] * (2 / 3) * \
-        (Sy + CFLy) + C1e[j, 0] * (2 / 3) * (Sy + CFLy) + C1e[j, 2] * (2 * Sy \
-        / 3) + C1e[j, 1] * (1 / 3) * (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) \
-        - C0[j, 1] * (1 / 3)
-        
-    # Right part of the ring AB IMPLEMENTED
-    for j in range(2, Ny - 1):
-        
-        C2e[j, Nx - 2] = C1e[j + 1, Nx - 2] * (2 * Sy / 3) + C1e[j - 1, \
-        Nx - 2] * (2 / 3) * (CFLy + Sy) + C1e[j, Nx - 1] * (2 * Sx / 3) + \
-        C1e[j, Nx - 3] * (2 / 3) * (Sx + CFLx) + C1e[j, Nx - 2] * (1 / 3) * \
-        (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) - C0[j, Nx - 2] * (1 / 3)
-
-    # Top part of the ring AB IMPLEMENTED
-    for j in range(2, Nx - 2):
-        
-        C2e[Ny - 2, j] = C1e[Ny - 1, j] * (2 * Sy / 3) + C1e[Ny - 3, j] * \
-        (2 / 3) * (Sy + CFLy) + C1e[Ny - 2, j + 1] * (2 * Sx / 3) + \
-        C1e[Ny - 2, j - 1] * (2 / 3) * (Sx + CFLx) + C1e[Ny - 2, j] * (1 / 3) \
-        * (-4 * Sx - 4 * Sy - 2 * CFLx - 2 * CFLy) - C0[Ny - 2, j] * (1 / 3)
-    
-    # Calculating inner nodes (high order derivatives)
-    for i in range(2, Ny - 2):
-    
-        for j in range(2, Nx - 2):
-
-#            # Low order derivatives (just for testing purposes, though it can 
-#            # be implemented)
-#            C2e[i, j] = Sx * C1e[i, j + 1] + (Sx + CFLx) * C1e[i, j - 1] + Sy \
-#            * C1e[i + 1, j] + (Sy + CFLy) * C1e[i - 1, j] + C1e[i, j] * (-2 * \
-#            Sx - 2 * Sy - CFLx - CFLy) + C0[i, j]
-
-            # High order approximation for implementation
-            C2e[i, j] = -C1e[i + 2, j] * (Sy / 18) + C1e[i + 1, j] * (8 * Sy / \
-            9) + C1e[i - 1, j] * (4 * CFLy / 3 + 8 * Sy / 9) - C1e[i - 2, j] * \
-            (CFLy / 3 + Sy / 18) - C1e[i, j + 2] * (Sx / 6) + C1e[i, j + 1] * \
-            (8 * Sx / 9) + C1e[i, j - 1] * (4 * CFLx / 3 + 8 * Sx / 9) - \
-            C1e[i, j - 2] * (Sx / 18 + CFLx / 3) + C1e[i , j] * (-5 * Sx / 3 - \
-            5 * Sy / 3 - CFLx - CFLy + 4 / 3) - C0[i, j] * (1 / 3)
-    
-    
-    # Storing error in the errt vector
+    # Calculating error for the timestep given
+    err = np.abs(C2e - Ca)
     errt[I - 1] = np.linalg.norm(C2e - Ca)
     
-    # Plotting relevant data for the process
-    cf = axarr[0 ,0].contourf(X,Y,C2e)
-    axarr[0 ,0].set_title('Numerical solution')
+    # plotting concentration fields
+    axarr[0, 0].contourf(X, Y, C2e)
+    axarr[0, 0].set_title('Numerical solution')
     axarr[0, 1].contourf(X, Y, Ca)
     axarr[0, 1].set_title('Analytical solution')
-    axarr[1, 0].contourf(X, Y, np.abs(C2e - Ca))
-    axarr[1, 0].set_title('Error')
+    axarr[1, 0].contourf(X, Y, np.log10(err))
+    axarr[1, 0].set_title('Error heatmap')
     plt.draw()
     plt.pause(0.1)
     
-    # Changing the variables for the next step
+    # Updating concentration fields
     C0 = C1e
     C1e = C2e
-    C2e = np.zeros((Nx, Ny))    
+    C2e = np.zeros((Ny, Nx))
