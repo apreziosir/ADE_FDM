@@ -15,7 +15,9 @@ February 2018
 
 import numpy as np  
 import matplotlib.pyplot as plt
-import time
+from matplotlib import style
+from matplotlib import cm
+import matplotlib.animation as animation
 import Screen_msgs as SM
 import Analyt as AN
 import Auxiliary as AUX
@@ -45,9 +47,9 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 # =============================================================================
 
 T = 10                                          # Total sim. time (s)
-dt = 0.01                                      # timestep size (s)
-Nx = 101                                        # Nodes in x direction
-Ny = 101                                        # Nodes in y direction 
+dt = 0.1                                        # timestep size (s)
+Nx = 11                                         # Nodes in x direction
+Ny = 11                                         # Nodes in y direction 
 
 # Calculation of initial parameters
 nT = int(np.ceil((T - t0) / dt))                # Number of timesteps
@@ -126,12 +128,54 @@ errt[0] = np.linalg.norm(C1e - Ca)
 C2e = np.zeros((Ny, Nx))
 err = np.zeros((Ny, Nx))
 
-# Initiating plotting function
+# Initiating plots
 plt.ion()
-fig, axarr = plt.subplots(2, 2)
+style.use('fivethirtyeight')
+fig = plt.figure()
+fig.set_size_inches(14, 12)
+fig.subplots_adjust(hspace=0.15)
+ax1 = fig.add_subplot(2, 2, 1)
+ax2 = fig.add_subplot(2, 2, 2)
+ax3 = fig.add_subplot(2, 2, 3)
+ax4 = fig.add_subplot(2, 2, 4)
 
 
-for I in range(2, nT):
+# ==============================================================================
+# Defining plotting for animation function
+# ==============================================================================
+
+#def animate(I):
+#    
+#    ax1.clear()
+#    ax2.clear()
+#    ax3.clear()
+#    ax4.clear()
+#    ax1.contourf(X, Y, C2e, cmap=cm.coolwarm)
+#    ax1.set_title('Numerical solution')
+#    ax2.contourf(X, Y, Ca, cmap=cm.coolwarm)
+#    ax2.set_title('Analytical solution')
+#    ax3.contourf(X, Y, err, cmap=cm.coolwarm)
+#    ax3.set_title('Error field')   
+#    ax4.semilogy(np.linspace(0, nT - 1, nT), errt)
+#    ax4.set_title('Error in every timestep')
+    
+#Plotting part
+#fig, axarr = plt.subplots(2, 2)
+#fig.subplots_adjust(hspace=0.5)
+#axarr[0, 0].contourf([], [], [], cmap = cm.coolwarm)
+#axarr[0, 0].set_title('Numerical solution')
+#fig.colorbar(axarr[0, 0], ax=axarr[0, 0], shrink=0.9)
+#axarr[0, 1].contourf([], [], [], cmap = cm.coolwarm)
+#axarr[0, 1].set_title('Analytical solution')
+#axarr[1, 0].contourf([], [], [], cmap = cm.coolwarm)
+#axarr[1, 0].set_title('Error heatmap')
+#
+#
+#
+#line_ani = animation.FuncAnimation(fig1, update_line, 25, fargs=(data, l),
+#                                   interval=50, blit=True)
+
+for I in range(2, nT + 1):
     
     # Calculating analytical solution for the time step
     Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + I * dt)
@@ -155,15 +199,24 @@ for I in range(2, nT):
     err = np.abs(C2e - Ca)
     errt[I - 1] = np.linalg.norm(C2e - Ca)
     
-    # plotting concentration fields
-    axarr[0, 0].contourf(X, Y, C2e)
-    axarr[0, 0].set_title('Numerical solution')
-    axarr[0, 1].contourf(X, Y, Ca)
-    axarr[0, 1].set_title('Analytical solution')
-    axarr[1, 0].contourf(X, Y, np.log10(err))
-    axarr[1, 0].set_title('Error heatmap')
-    plt.draw()
-    plt.pause(0.1)
+    # Classical plotting - not working at all
+    ax1.clear()
+    ax2.clear()
+    ax3.clear()
+    ax4.clear()
+    ax1.contourf(X, Y, C2e, cmap=cm.coolwarm)
+    ax1.set_title('Numerical solution')
+    ax2.contourf(X, Y, Ca, cmap=cm.coolwarm)
+    ax2.set_title('Analytical solution')
+    ax3.contourf(X, Y, err, cmap=cm.coolwarm)
+    ax3.set_title('Error field')   
+    ax4.semilogy(np.linspace(0, nT - 1, nT), errt)
+    ax4.set_title('Error in every timestep')
+    fig.canvas.draw()
+    
+#    # Plotting the results in a window - working just for final step
+#    ani = animation.FuncAnimation(fig, animate(I), interval = 1000, blit = True)
+#    plt.show()
     
     # Updating concentration fields
     C0 = C1e
