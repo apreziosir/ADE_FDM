@@ -52,44 +52,43 @@ def ev_sp(C, Dx, Dy, dx, dy, u, v, Nx, Ny):
     
     sp = np.zeros((Ny, Nx))
     
+    # Defining coefficients for filling spatial formula
+    CDx = Dx / (dx ** 2)
+    CDy = Dy / (dy ** 2)
+    CAx = u / (2 * dx)
+    CAy = v / (2 * dy)
+    
     # Bottom part of the ring
-    for i in range(1, Nx - 1):
-        
-        sp[1, i] = C[2, i] * (Dy / dy ** 2) + C[0, i] * (v / dy + Dy / dy ** \
-        2) + C[1, i + 1] * (Dx / dx ** 2) + C[1, i - 1] * (u / dx + Dx / dx ** \
-        2) - C[1, i] * (u / dx + v / dy + 2 * Dx / dx ** 2 + 2 * Dy / dy ** 2)
+    for i in range(1, Nx - 1):        
+        sp[1, i] = C[2, i] * CDy + C[0, i] * (CAy + CDy) + C[1, i + 1] * (CDx) \
+        + C[1, i - 1] * (CAx + CDx) - C[1, i] * (CAx + CAy + 2 * CDx + 2 * CDy)
     
     # Left part of the ring    
     for i in range(1, Ny - 1):
-        sp[i, 1] = C[i + 1, 1] * (Dy / dy ** 2) + C[i - 1, 1] * (v / dy + Dy \
-        / dy ** 2) + C[i, 2] * (Dx / dx ** 2) + C[i, 0] * (u / dx + Dx / dx ** \
-        2) - C[i, 1] * (u / dx + v / dy + 2 * Dx / dx ** 2 + 2 * Dy / dy ** 2)
+        sp[i, 1] = C[i + 1, 1] * CDy + C[i - 1, 1] * (CAy + CDy) + C[i, 2] * \
+        CDx + C[i, 0] * (CAx + CDx) - C[i, 1] * (CAx + CAy + 2 * CDx + 2 * CDy)
     
     # Right part of the ring    
     for i in range(2, Ny - 1):
-        sp[i, Nx - 2] = C[i + 1, Nx - 2] * (Dy / dy ** 2) + C[i - 1, Nx - 2] \
-        * (v / dy + Dy / dy ** 2) + C[i, Nx - 1] * (Dx / dx ** 2) + C[i, Nx - \
-        3] * (u / dx + Dx / dx ** 2) - C[i, Nx - 2] * (u / dx + v / dy + 2 * \
-        Dx / dx ** 2 + 2 * Dy / dy ** 2)
+        sp[i, Nx - 2] = C[i + 1, Nx - 2] * CDy + C[i - 1, Nx - 2] * (CAy + \
+        CDy) + C[i, Nx - 1] * CDx + C[i, Nx - 3] * (CAx + CDx) - C[i, Nx - 2] \
+        * (CAx + CAy + 2 * CDx + 2 * CDy)
             
     # Top part of the ring
-    for i in range(2, Nx - 2):
-        
-        sp[Ny - 2, i] = C[Ny - 1, i] * (Dy / dy ** 2) + C[Ny - 3, i] * (v / dy \
-        + Dy / dy ** 2) + C[Ny - 2, i + 1] * (Dx / dx ** 2) + C[Ny - 2, i - 1] \
-        * (u / dx + Dx / dx ** 2) - C[Ny - 2, i] * (u / dx + v / dy + 2 * Dx / \
-        dx ** 2 + 2 * Dy / dy ** 2)
+    for i in range(2, Nx - 2):        
+        sp[Ny - 2, i] = C[Ny - 1, i] * CDy + C[Ny - 3, i] * (CAy + CDy) + \
+        C[Ny - 2, i + 1] * CDx + C[Ny - 2, i - 1] * (CAx + CDx) - C[Ny - 2, i] \
+        * (CAx + CAy + 2 * CDx + 2 * CDy)
         
     # Inner portion of the domain
     for i in range(2, Ny - 2):
-#    
+    
         for j in range(2, Nx - 2):
             
-            sp[i ,j] = C[i + 1, j] * (Dy / dy ** 2) + C[i - 1, j] * (Dy / dy \
-            ** 2 + 2 * v / dy) - C[i - 2, j] * (v / (2 * dy)) + C[i, j + 1] * \
-            (Dx / dx ** 2) + C[i, j - 1] * (Dx / dx ** 2 + 2 * u / dx) - C[i, \
-            j - 2] * (u / (2 * dx)) - C[i, j] * (2 * Dx / dx ** 2 + 2 * Dy / \
-            dy ** 2 + (3 * v) / (2 * dy) + (3 * u) / (2 * dx))
+            sp[i ,j] = C[i + 1, j] * CDy + C[i - 1, j] * (CDy + 2 * CAy) - \
+            C[i - 2, j] * (CAy / 2) + C[i, j + 1] * CDx + C[i, j - 1] * (CDx + \
+            2 * CAx) - C[i, j - 2] * (CAx / 2) - C[i, j] * (2 * CDx + 2 * CDy \
+            + 1.5 * CAy + 1.5 * CAx)
         
     return sp
         
