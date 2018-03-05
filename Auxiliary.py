@@ -58,27 +58,27 @@ def ev_sp(C, Dx, Dy, dx, dy, u, v, Nx, Ny):
     CAx = u / (2 * dx)
     CAy = v / (2 * dy)
     
-    # Bottom part of the ring
-    for i in range(1, Nx - 1):        
-        sp[1, i] = C[2, i] * CDy + C[0, i] * (CAy + CDy) + C[1, i + 1] * (CDx) \
-        + C[1, i - 1] * (CAx + CDx) - C[1, i] * (CAx + CAy + 2 * CDx + 2 * CDy)
-    
-    # Left part of the ring    
-    for i in range(1, Ny - 1):
-        sp[i, 1] = C[i + 1, 1] * CDy + C[i - 1, 1] * (CAy + CDy) + C[i, 2] * \
-        CDx + C[i, 0] * (CAx + CDx) - C[i, 1] * (CAx + CAy + 2 * CDx + 2 * CDy)
-    
-    # Right part of the ring    
-    for i in range(2, Ny - 1):
-        sp[i, Nx - 2] = C[i + 1, Nx - 2] * CDy + C[i - 1, Nx - 2] * (CAy + \
-        CDy) + C[i, Nx - 1] * CDx + C[i, Nx - 3] * (CAx + CDx) - C[i, Nx - 2] \
-        * (CAx + CAy + 2 * CDx + 2 * CDy)
-            
-    # Top part of the ring
-    for i in range(2, Nx - 2):        
-        sp[Ny - 2, i] = C[Ny - 1, i] * CDy + C[Ny - 3, i] * (CAy + CDy) + \
-        C[Ny - 2, i + 1] * CDx + C[Ny - 2, i - 1] * (CAx + CDx) - C[Ny - 2, i] \
-        * (CAx + CAy + 2 * CDx + 2 * CDy)
+#    # Bottom part of the ring
+#    for i in range(1, Nx - 1):        
+#        sp[1, i] = C[2, i] * CDy + C[0, i] * (CAy + CDy) + C[1, i + 1] * (CDx) \
+#        + C[1, i - 1] * (CAx + CDx) - C[1, i] * (CAx + CAy + 2 * CDx + 2 * CDy)
+#    
+#    # Left part of the ring    
+#    for i in range(1, Ny - 1):
+#        sp[i, 1] = C[i + 1, 1] * CDy + C[i - 1, 1] * (CAy + CDy) + C[i, 2] * \
+#        CDx + C[i, 0] * (CAx + CDx) - C[i, 1] * (CAx + CAy + 2 * CDx + 2 * CDy)
+#    
+#    # Right part of the ring    
+#    for i in range(2, Ny - 1):
+#        sp[i, Nx - 2] = C[i + 1, Nx - 2] * CDy + C[i - 1, Nx - 2] * (CAy + \
+#        CDy) + C[i, Nx - 1] * CDx + C[i, Nx - 3] * (CAx + CDx) - C[i, Nx - 2] \
+#        * (CAx + CAy + 2 * CDx + 2 * CDy)
+#            
+#    # Top part of the ring
+#    for i in range(2, Nx - 2):        
+#        sp[Ny - 2, i] = C[Ny - 1, i] * CDy + C[Ny - 3, i] * (CAy + CDy) + \
+#        C[Ny - 2, i + 1] * CDx + C[Ny - 2, i - 1] * (CAx + CDx) - C[Ny - 2, i] \
+#        * (CAx + CAy + 2 * CDx + 2 * CDy)
         
     # Inner portion of the domain
     for i in range(2, Ny - 2):
