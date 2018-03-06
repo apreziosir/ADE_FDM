@@ -31,10 +31,10 @@ X0 = 0.                                         # Initial x point (m)
 XL = 5.                                         # Final y point (m)
 Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
-Dx = 0.030                                      # Diff coeff x (m2/s)
-Dy = 0.045                                      # Diff coeff y (m2/s)
-u = 0.8                                         # Horizontal velocity (m/s)
-v = 0.9                                        # Vertical velocity (m/s)
+Dx = 0.30                                      # Diff coeff x (m2/s)
+Dy = 0.85                                      # Diff coeff y (m2/s)
+u = 0.3                                         # Horizontal velocity (m/s)
+v = 0.6                                        # Vertical velocity (m/s)
 M = 1.                                          # Mass injected (g)
 xC0 = 0.0                                       # x injection coordinate
 yC0 = 0.0                                       # y injection coordinate
@@ -46,9 +46,9 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 # =============================================================================
 
 T = 3                                           # Total sim. time (s)
-dt = 0.003                                       # timestep size (s)
-Nx = 31                                         # Nodes in x direction
-Ny = 31                                         # Nodes in y direction 
+dt = 0.01                                       # timestep size (s)
+Nx = 11                                         # Nodes in x direction
+Ny = 11                                         # Nodes in y direction 
 
 # Calculation of initial parameters
 nT = int(np.ceil((T - t0) / dt))                # Number of timesteps
