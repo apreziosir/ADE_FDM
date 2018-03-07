@@ -11,6 +11,7 @@ CFD Pontificia Universidad Javeriana
 
 import numpy as np
 import scipy.sparse as scsp
+from scipy.sparse.linalg import spsolve
 import Screen_msgs as SM
 import Analyt as AN
 import Auxiliary as AUX
@@ -27,7 +28,7 @@ YL = 5.                                         # Final y point (m)
 Dx = 0.030                                      # Diff coeff x (m2/s)
 Dy = 0.045                                      # Diff coeff y (m2/s)
 u = 0.8                                         # Horizontal velocity (m/s)
-v = 0.9                                        # Vertical velocity (m/s)
+v = 0.9                                         # Vertical velocity (m/s)
 M = 1.                                          # Mass injected (g)
 xC0 = 0.0                                       # x injection coordinate
 yC0 = 0.0                                       # y injection coordinate
@@ -36,12 +37,15 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 
 # =============================================================================
 # Numerical parameters for the program. 
+# theta = 1 fully implicit
+# theta = 0 fully explicit
 # =============================================================================
 
 T = 3                                           # Total sim. time (s)
 dt = 0.01                                       # timestep size (s)
 Nx = 21                                         # Nodes in x direction
 Ny = 21                                         # Nodes in y direction 
+theta = 0.5                                     # Crank-Nicholson ponderation
 
 # Calculation of initial parameters
 nT = int(np.ceil((T - t0) / dt))                # Number of timesteps
@@ -68,6 +72,9 @@ CFLy = v * dt / dy
 
 SM.show_sc(Sx, Sy, CFLx, CFLy)
 
+# Matrix assembly for diffusive implicit part
+LHS = AUX.Mat_ass(Sx, Sy, Nx, Ny)
+
 # ==============================================================================
 # Imposing initial condition as an early analytical solution of the ADE equation
 # It is C(x0, y0, t0).
@@ -83,5 +90,81 @@ Cmax = np.max(C0)
 # diffusive term
 # ==============================================================================
 
+# First fractional step part for timestep 1 - advective term
 
+# Calculating analytical solution for first timestep
+Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + dt)
 
+# Evaluating space derivative just for advections
+sp0 = AUX.ev_sp(C0, 0, 0, dx, dy, u, v, Nx, Ny)
+
+# Making first advection step
+C1s = C0 + dt * sp0
+
+# Imposing boundary conditions (domain is a 2D array)
+
+C1s[0, :] = Ca[0, :]                        # Bottom boundary
+C1s[Ny - 1, :] = Ca[Ny -1, :]               # Top boundary
+C1s[:, 0] = Ca[:, 0]                        # Left boundary
+C1s[:, Nx - 1] = Ca[:, Nx - 1]              # Right boundary
+
+# Second fractional step part for timestep 1 - diffusive term
+
+# Explicit part - evaluating diffusion just in space
+sp0 = AUX.ev_sp(C1s, Dx, Dy, dx, dy, 0, 0, Nx, Ny)
+
+C1e = C1s + dt * sp0
+
+# Implicit part
+C1i = spsolve(LHS, np.reshape(C1s, (Nx * Ny, 1)))
+
+C1 = theta * C1i.reshape(Nx, Ny) + (1 - theta) * C1e
+
+# Error checking
+errt[0] = np.linalg.norm(C1 - Ca)
+
+# Second array declaration
+C2s = np.zeros((Ny, Nx))
+err = np.zeros((Ny, Nx))
+
+# Starting time loop
+for I in range(2, nT + 1):
+    
+    # Calculating analytical solution for the time step
+    Ca = AN.difuana(M, A, Dx, Dy, u, v, xC0, yC0, X, Y, t0 + I * dt)
+    
+    # Calculating C* - only advection with Adams Bashforth Order 2
+    
+    # Spatial function evaluated in t - 1
+    sp0 = AUX.ev_sp(C0, 0, 0, dx, dy, u, v, Nx, Ny)
+    
+    # Spatial function evaluated in t 
+    sp1 = AUX.ev_sp(C1, 0, 0, dx, dy, u, v, Nx, Ny)
+    
+    # Implementing 2nd order Adams-Bashforth
+    C2s = C1 + (dt / 2) * (3 * sp0 - sp1)
+    
+    # Imposing Boundary conditions
+    C2s[0, :] = Ca[0, :] 
+    C2s[Ny - 1, :] = Ca[Ny -1, :]
+    C2s[:, 0] = Ca[:, 0]
+    C2s[:, Nx - 1] = Ca[:, Nx - 1]
+    
+    # Calculating C2 with the values of C* - explicit FE
+    C2sp = AUX.ev_sp(C2s, Dx, Dy, dx, dy, 0, 0, Nx, Ny)
+    C2e = C2s + dt * C2sp
+    
+    # Calculating C2 with C* - implicit BE
+    C2i = spsolve(LHS, np.reshape(C2s, (Nx * Ny, 1)))
+    
+    # Making Crank-Nicholson ponderation
+    C2 = theta * C2i.reshape(Nx, Ny) + (1 - theta) * C2e
+    
+    # Calculating error for the timestep given
+    err = np.abs(C2 - Ca)
+    errt[I - 1] = np.linalg.norm(C2e - Ca)
+        
+    # Updating concentration fields
+    C0 = C1
+    C1 = C2
+    C2 = np.zeros((Ny, Nx))

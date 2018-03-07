@@ -33,8 +33,8 @@ Y0 = 0.                                         # Initial y point (m)
 YL = 5.                                         # Final y point (m)
 Dx = 0.30                                      # Diff coeff x (m2/s)
 Dy = 0.85                                      # Diff coeff y (m2/s)
-u = 0.3                                         # Horizontal velocity (m/s)
-v = 0.6                                        # Vertical velocity (m/s)
+u = 1.2                                         # Horizontal velocity (m/s)
+v = 0.9                                        # Vertical velocity (m/s)
 M = 1.                                          # Mass injected (g)
 xC0 = 0.0                                       # x injection coordinate
 yC0 = 0.0                                       # y injection coordinate
@@ -46,9 +46,9 @@ A = (XL - X0) * (YL -Y0)                        # Domain area (m2)
 # =============================================================================
 
 T = 3                                           # Total sim. time (s)
-dt = 0.01                                       # timestep size (s)
-Nx = 11                                         # Nodes in x direction
-Ny = 11                                         # Nodes in y direction 
+dt = 0.001                                       # timestep size (s)
+Nx = 21                                         # Nodes in x direction
+Ny = 21                                         # Nodes in y direction 
 
 # Calculation of initial parameters
 nT = int(np.ceil((T - t0) / dt))                # Number of timesteps
@@ -62,7 +62,7 @@ X, Y = np.meshgrid(x,y)                         # Meshgrid for plotting
 del(x, y)                                       # Deleting useless arrays
 
 # Generating error vectors (for svaing and comparing results)
-errt = np.zeros(int(nT))                        # Error evolution in time
+errt = np.zeros(int(nT))                       # Error evolution in time
 
 # ==============================================================================
 # Calculation of nondimensional parameters of the ADE (Sx, Sy, CFLx and CFLy)
@@ -113,55 +113,13 @@ errt[0] = np.linalg.norm(C1e - Ca)
 # Second array declaration
 C2e = np.zeros((Ny, Nx))
 err = np.zeros((Ny, Nx))
-#
-## Initiating plots
-#plt.ion()
-#style.use('fivethirtyeight')
-#fig, axes = plt.subplots()
-#fig.set_size_inches(14, 12)
-#fig.tight_layout()
-##fig.subplots_adjust(hspace=0.15)
-#ax1 = fig.add_subplot(2, 2, 1)
-#ax2 = fig.add_subplot(2, 2, 2)
-#ax3 = fig.add_subplot(2, 2, 3)
-#ax4 = fig.add_subplot(2, 2, 4)
-#
-#
-## ==============================================================================
-## Defining plotting for animation function
-## ==============================================================================
-#
-##def animate(I):
-##    
-##    ax1.clear()
-##    ax2.clear()
-##    ax3.clear()
-##    ax4.clear()
-##    ax1.contourf(X, Y, C2e, cmap=cm.coolwarm)
-##    ax1.set_title('Numerical solution')
-##    ax2.contourf(X, Y, Ca, cmap=cm.coolwarm)
-##    ax2.set_title('Analytical solution')
-##    ax3.contourf(X, Y, err, cmap=cm.coolwarm)
-##    ax3.set_title('Error field')   
-##    ax4.semilogy(np.linspace(0, nT - 1, nT), errt)
-##    ax4.set_title('Error in every timestep')
-#    
-##Plotting part
-##fig, axarr = plt.subplots(2, 2)
-##fig.subplots_adjust(hspace=0.5)
-##axarr[0, 0].contourf([], [], [], cmap = cm.coolwarm)
-##axarr[0, 0].set_title('Numerical solution')
-##fig.colorbar(axarr[0, 0], ax=axarr[0, 0], shrink=0.9)
-##axarr[0, 1].contourf([], [], [], cmap = cm.coolwarm)
-##axarr[0, 1].set_title('Analytical solution')
-##axarr[1, 0].contourf([], [], [], cmap = cm.coolwarm)
-##axarr[1, 0].set_title('Error heatmap')
-##
-##
-##
-##line_ani = animation.FuncAnimation(fig1, update_line, 25, fargs=(data, l),
-##                                   interval=50, blit=True)
-#
+
+# Figure declaration 
+plt.ion()
+plt.figure(1)
+style.use('fivethirtyeight')
+
+# starting time loop
 for I in range(2, nT + 1):
     
     # Calculating analytical solution for the time step
@@ -186,25 +144,31 @@ for I in range(2, nT + 1):
     err = np.abs(C2e - Ca)
     errt[I - 1] = np.linalg.norm(C2e - Ca)
     
-#    # Classical plotting - not working at all
-##    ax1.clear()
-##    ax2.clear()
-##    ax3.clear()
-##    ax4.clear()
-#    ax1.contourf(X, Y, C2e, cmap=cm.coolwarm)
-#    ax1.set_title('Numerical solution')
-#    ax2.contourf(X, Y, Ca, cmap=cm.coolwarm)
-#    ax2.set_title('Analytical solution')
-#    ax3.contourf(X, Y, err, cmap=cm.coolwarm)
-#    ax3.set_title('Error field')   
-#    ax4.semilogy(np.linspace(0, nT - 1, nT), errt)
-#    ax4.set_title('Error in every timestep')
-#    plt.draw()
-##    
-###    # Plotting the results in a window - working just for final step
-###    ani = animation.FuncAnimation(fig, animate(I), interval = 1000, blit = True)
-###    plt.show()
-##    
+    # Plotting numerical, analytical, error field and error in time
+    plt.clf()
+    
+    # Numerical solution
+    plt.subplot(2, 2, 1)
+    plt.contourf(X, Y, C2e, cmap=cm.coolwarm, vmin = 0., vmax = Cmax)       
+    plt.colorbar()
+    
+    # Analytical solution
+    plt.subplot(2, 2, 2)
+    plt.contourf(X, Y, Ca)                          
+    plt.colorbar()
+    
+    # Error field
+    plt.subplot(2, 2, 3)
+    plt.contourf(X, Y, err)                         
+    plt.colorbar()
+    
+    # Error evolution
+    plt.subplot(2, 2, 4)
+    plt.semilogy(np.linspace(0, nT - 1, nT), errt)  
+    
+    plt.draw()
+    plt.pause(0.2)
+    
     # Updating concentration fields
     C0 = C1e
     C1e = C2e

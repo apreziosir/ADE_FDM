@@ -68,7 +68,7 @@ def ev_sp(C, Dx, Dy, dx, dy, u, v, Nx, Ny):
         
 # ==============================================================================
 # Diffusion matrix assembly with Dirichlet Boundary conditions matching the 
-# analytical solution at the boundary
+# analytical solution at the boundary (Only Dirichlet BC).
 # ==============================================================================
     
 def Mat_ass(Sx, Sy, Nx, Ny):
@@ -80,32 +80,42 @@ def Mat_ass(Sx, Sy, Nx, Ny):
     N2 = (Nx * Ny) - N1
     
     # Matrix elements corresponding to main diagonal Nx * Ny
-    LHS_Dii = np.concatenate((np.ones(Nx + 1), np.ones(Nx - 1)), axis = 0)
-    LHS_Iii = 
-    LHS_Jii = 
+    Aux1 = np.ones(Nx - 2) * (1 + 2 * Sx + 2 * Sy)
+    Aux2 = np.tile(np.concatenate(([1], Aux1, [1]), axis = 0), Ny - 2)
+    LHS_Dii = np.concatenate((np.ones(Nx), Aux2, np.ones(Nx)), axis = 0)
+    LHS_Iii = np.linspace(0, Nx * Ny - 1, Nx * Ny)
+    LHS_Jii = np.linspace(0, Nx * Ny - 1, Nx * Ny)
+    
+    # Rows of internal elements - defines columns too
+    Ri = np.linspace(Nx , Nx * (Ny - 1) - 1, Nx * Ny - 2 * Nx)
+    Ri = Ri[Ri % Nx != 0]
+    Ri = Ri[(Ri + 1) % Nx != 0]
+    
     
     # Matrix elements correspnding to nodes (col + 1) and (col - 1)
-    LHS_Di1 = 
-    LHS_Ii1 = 
-    LHS_Ji1 =
-    LHS_Ji0 =
+    LHS_Di1 = np.ones(2 * N2) * (-Sx)
+    LHS_Ii1 = Ri
+    LHS_Ji1 = Ri + 1
+    LHS_Ji0 = Ri - 1
     
     # Matrix elements corresponding to (row + 1) and (row - 1)
-    LHS_D1i = 
-    LHS_I1i = 
-    LHS_J1i =
-    LHS_J0i =
+    LHS_D1i = np.ones(2 * N2) * (-Sy)
+    LHS_I1i = Ri
+    LHS_J1i = Ri + Nx
+    LHS_J0i = Ri - Nx
     
-    # Defining matrix as a sparse coordinate system matrix - empty lists
-    LHS_d = np.zeros(N1 + 5* N2)
-    LHS_i = np.zeros(N1 + 5* N2)
-    LHS_j = np.zeros(N1 + 5* N2)
     
-    # Filling main diagonal of data 
-    LHS_d[0:N1] = np.ones()
-    
+    # Compiling data, rows and columns
+    data = np.concatenate((LHS_Dii, LHS_Di1, LHS_D1i), axis = 0)
+    rows = np.concatenate((LHS_Iii, LHS_Ii1, LHS_Ii1, LHS_I1i, LHS_I1i), \
+                          axis = 0)
+    cols = np.concatenate((LHS_Jii, LHS_Ji0, LHS_Ji1, LHS_J1i, LHS_J0i), \
+                          axis = 0)
     
     # Constructing coordinate matrix
-    LHS = scsp.coo_matrix((Nx * Ny, Nx * Ny))    
+    LHS = scsp.coo_matrix((data, (rows, cols)), shape = (Nx * Ny, Nx * Ny))
+    LHS = LHS.tocsr()    
     
     return LHS
+
+# ==============================================================================
